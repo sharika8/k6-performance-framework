@@ -36,7 +36,9 @@ jobs:
       - name: Run smoke tests
         env:
           ENV: ${{ github.event.inputs.environment || 'development' }}
-        run: k6 run tests/smoke/smoke.test.js --out json=reports/smoke-results.json
+        run: |
+          mkdir -p reports
+          k6 run tests/smoke/smoke.test.js --out json=reports/smoke-results.json
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,11 +61,63 @@ jobs:
       - name: Run load tests
         env:
           ENV: ${{ github.event.inputs.environment || 'development' }}
-        run: k6 run tests/load/load.test.js --out json=reports/load-results.json
+        run: |
+          mkdir -p reports
+          k6 run tests/load/load.test.js --out json=reports/load-results.json
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: load-results
+          path: reports/
+          retention-days: 30
+
+  stress:
+    name: Stress Tests
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'stress') || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run stress tests
+        env:
+          ENV: ${{ github.event.inputs.environment || 'development' }}
+        run: |
+          mkdir -p reports
+          k6 run tests/stress/stress.test.js --out json=reports/stress-results.json
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-results
+          path: reports/
+          retention-days: 30
+
+  spike:
+    name: Spike Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'spike'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run spike tests
+        env:
+          ENV: ${{ github.event.inputs.environment || 'development' }}
+        run: |
+          mkdir -p reports
+          k6 run tests/spike/spike.test.js --out json=reports/spike-results.json
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-results
           path: reports/
           retention-days: 30
